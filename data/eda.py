@@ -51,7 +51,8 @@ vn_stopwords = [word.replace(' ', '_') for word in vn_stopwords]
     
 tokens = [  
     [word.lower() for word in ViTokenizer.tokenize(doc).split()
-     if word not in vn_stopwords
+     if word.lower() not in vn_stopwords
+     and "." not in word
      ] for doc in documents
     ]
 
@@ -80,6 +81,11 @@ counter_word = Counter(all_words)
 top_common_word = [
     word[0] for word in counter_word.most_common(int(0.05*len(counter_word)))
     ]
+top_10k_word = [
+    word[0] for word in counter_word.most_common(
+        int(0.05*len(counter_word)) + 10000
+        )
+    ]
 
 (pd.Series(top_common_word[:100])
  .rename('top_100_most_common')
@@ -87,11 +93,12 @@ top_common_word = [
  )
 
 tokens_updated = [
-    [word for word in token if word not in top_common_word] 
+    [word for word in token 
+     if word not in top_common_word and word in top_10k_word] 
     for token in tokens_updated
     ]
 
-tokens_updated = [token for token in tokens_updated if len(token)>=2]
+tokens_updated = [token for token in tokens_updated if len(token)>=1]
 
 
 dictionary = corpora.Dictionary(tokens_updated)
@@ -101,8 +108,8 @@ corpus = [dictionary.doc2bow(text) for text in tokens_updated]
 lda_model = LdaModel(
     corpus=corpus,
     id2word=dictionary,
-    num_topics=10,
-    passes=10,
+    num_topics=50,
+    passes=15,
     random_state=42
     )
 
@@ -118,6 +125,10 @@ for topic in topics:
 df_topics = pd.DataFrame(topics_dict)
 
 df_topics.to_excel('topic_allocation.xlsx')
+#%%
+doc_topics = [lda_model.get_document_topics(bow) for bow in corpus]
+
+# NEXT => SUM ALL DOC TOPIC TO FIND THE MOST IMPORTANT TOPIC
     
 #%% N-GRAM ANALYSIS
 def export_ngram_list(text="a sentence", num_gram=2, num_top=50):
