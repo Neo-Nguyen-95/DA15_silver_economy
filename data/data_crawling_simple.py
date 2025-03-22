@@ -1,13 +1,11 @@
 #%% LIB
-# import pandas as pd
+import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 import os
 import certifi
-import pandas as pd
 
 os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
-
 
 #%% FOR SCRAPING
 def get_text(url):
