@@ -3,11 +3,11 @@ import scrapy
 import pandas as pd
 
 #%% LOAD LINKS
-ngaymoionline_links = pd.read_csv('/Users/dungnguyen/Desktop/Data Science off/Python Programming/3. Publication/DA15_silver_economy/database/ngaymoionline_article-link.csv')
+ngaymoionline_links = pd.read_csv('/Users/dungnguyen/Desktop/Data Science off/Python Programming/3. Publication/DA15_silver_economy/data/resource_links/ngaymoionline_article-link.csv')
 
-dantri_links = pd.read_csv('/Users/dungnguyen/Desktop/Data Science off/Python Programming/3. Publication/DA15_silver_economy/database/dantri_article-link.csv')
+dantri_links = pd.read_csv('/Users/dungnguyen/Desktop/Data Science off/Python Programming/3. Publication/DA15_silver_economy/data/resource_links/dantri_article-link.csv')
 
-manual_links = pd.read_csv('/Users/dungnguyen/Desktop/Data Science off/Python Programming/3. Publication/DA15_silver_economy/database/manual-collected_article-link.csv')
+manual_links = pd.read_csv('/Users/dungnguyen/Desktop/Data Science off/Python Programming/3. Publication/DA15_silver_economy/data/resource_links/manual-collected_article-link.csv')
 manual_links = manual_links[manual_links['lang'] == 'vie']
 
 
@@ -16,18 +16,21 @@ class MyspiderSpider(scrapy.Spider):
     name = "myspider"
     start_urls = (manual_links['link'].to_list())
     
-
     def parse(self, response):
-        # title = response.css("h1::text").get()
-        
+              
         # text = " ".join(response.css("p::text").getall())
         
-        # os.makedirs("scraped_documents", exist_ok=True)
+        # # Clean up whitespace
+        # text = text.strip().replace('\xa0', ' ')
+            
+        # yield {
+        #     "text": text
+        #     }
         
+        title_text = response.css("h1::text").get()
         
-        
-        for text in response.css("p::text").getall():
+        for p_text in response.css("p::text").getall():
             
             yield {
-                "text": text
+                f"{title_text}": p_text
                 }
