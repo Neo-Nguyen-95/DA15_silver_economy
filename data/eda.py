@@ -18,6 +18,14 @@ from gensim.models import LdaModel
 import re
 import string
 
+from dotenv import load_dotenv
+import os
+load_dotenv()
+from openai import OpenAI
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
 #%% CLEAN DATA
 # NGAYMOIONLINE DATA
 df_ngaymoi = pd.read_json('database/ngaymoionline_article_data.json')
@@ -26,8 +34,6 @@ len(df_ngaymoi)
 df_ngaymoi['text'] = df_ngaymoi['text'].apply(
     lambda x: x.replace(' TẠP CHÍ NGÀY MỚI ONLINE Cơ quan chủ quản: Hội Người cao tuổi Việt Nam Giấy phép hoạt động báo chí số 47/GP-BTTTT do Bộ Thông tin và Truyền thông cấp ngày 5/2/2020. Tổng biên tập: Lê Quang Phó Tổng biên tập: Nguyễn Thị Kim Thoa Trưởng phòng Điện tử: ThS. Lê Đình Vũ Tòa soạn: 12 Lê Hồng Phong, Ba Đình, Hà Nội Liên hệ:  Tạp chí điện tử của Tạp chí Người cao tuổi', '')
     )
-
-
 
 # DANTRI DATA
 
@@ -62,9 +68,66 @@ df = pd.concat([df_ngaymoi, df_dantri])
 # for _ in range(10):
 #     text = text.replace("  ", " ")
 
-#%% UNSUPERVISED TOPIC DETECT W/T LATENT DIRECHLET ALLOCATION
 # documents = sent_tokenize(text)
 documents = df['text'].to_list() + df_manual_combine['text']
+documents = [doc.replace('\n', '').replace('\t', '').replace('\r', '')
+             for doc in documents]
+
+#%% OPENAI CLASSIFICATION
+# api_key = os.getenv("SECRETE_KEY")
+
+# def classify_text(text):
+
+#     labels = [
+#         "Chính sách của nhà nước với người cao tuổi"
+#         "Vai trò và công việc của người cao tuổi trong gia đình và xã hội",
+#         "Các thách thức, khó khăn, và nhu cầu của người cao tuổi",
+#         "Khác"]
+    
+#     messages = [
+#         {"role": "system", 
+#          "content": "Bạn là một mô hình phân loại văn bản. NCT là viết tắt của người cao tuổi."},
+#         {"role": "user", 
+#          "content": f"""Cho văn bản sau: \" {text} \"
+#         Danh sách nhãn: {', '.join(labels)}
+#         Chỉ trả về một nhãn duy nhất. Không thêm kí tự nào.
+#         """}
+#         ]
+    
+#     client = OpenAI(api_key = api_key)
+    
+#     response = client.chat.completions.create( 
+#         model="gpt-4o-mini",
+#         messages = messages,
+#         temperature=0
+#         )
+    
+#     return response.choices[0].message.content
+
+# def classify_documents(documents):
+#     values = []
+    
+#     for text in documents:
+#         topic = classify_text(text)
+#         values.append(topic)
+        
+#     df = pd.Series(values, name='topics')
+        
+#     return df
+
+# doc_classified_df = classify_documents(documents)
+# doc_classified_df.to_csv('doc_classification.csv')
+doc_classified_df=pd.read_csv('doc_classification.csv')
+
+#%%
+df_exp = pd.DataFrame({
+    "doc": documents,
+    "topic": list(doc_classified_df['topics'].values)
+    })
+
+documents = list(df_exp[df_exp['topic']!='Khác']['doc'])
+
+#%% UNSUPERVISED TOPIC DETECT W/T LATENT DIRECHLET ALLOCATION
 
 # Stop word
 with open("vietnamese-stopwords.txt", "r") as file:
@@ -135,7 +198,7 @@ dictionary = corpora.Dictionary(tokens_updated)
 
 corpus = [dictionary.doc2bow(text) for text in tokens_updated]
 
-num_topics = 10
+num_topics = 15
 
 lda_model = LdaModel(
     corpus=corpus,
@@ -176,7 +239,30 @@ topic_interest = topic_interest/ len(documents)
 result = topic_interest.join(df_topics)
 
 result.to_excel('topic_allocation.xlsx')
-    
+
+#%%
+result['topic_words'] = result['top_weighted_words'].apply(
+    lambda x: ", ".join(x.split(',')[:4])
+    )
+
+
+result = result.sort_values('prob', ascending=False)
+
+result = result.reset_index()
+
+result['topic_words'] = result.index.astype(str) + '. ' + result['topic_words']
+
+
+plt.figure(figsize=(6, 8), dpi=200)
+sns.barplot(
+    x=result['prob']*100,
+    y=result['topic_words'],
+    orient='y'
+    )
+plt.xlabel('Average proportion of topics [%]')
+plt.ylabel('Four most weighted words of the group')
+plt.show()
+
 #%% N-GRAM ANALYSIS
 def export_ngram_list(text="a sentence", num_gram=2, num_top=50):
     result = {"word": [],
@@ -199,5 +285,8 @@ def export_ngram_list(text="a sentence", num_gram=2, num_top=50):
     df.to_excel(f'{num_top} most common {num_gram}-gram words.xlsx')
     return df
 
-# export_ngram_list(text=text, num_gram=4, num_top=100)
+export_ngram_list(
+    text=" ".join(documents), 
+    num_gram=4, 
+    num_top=100)
     
