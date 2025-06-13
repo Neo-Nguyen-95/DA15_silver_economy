@@ -17,15 +17,6 @@ class MyspiderSpider(scrapy.Spider):
     start_urls = (manual_links['link'].to_list())
     
     def parse(self, response):
-              
-        # text = " ".join(response.css("p::text").getall())
-        
-        # # Clean up whitespace
-        # text = text.strip().replace('\xa0', ' ')
-            
-        # yield {
-        #     "text": text
-        #     }
         
         title_text = response.css("h1::text").get()
         
